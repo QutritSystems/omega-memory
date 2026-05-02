@@ -798,7 +798,7 @@ class MaintenanceMixin:
                 "auto-unloads after 10 min idle."
             )
 
-        if count > max_nodes:
+        if (count or 0) > max_nodes:
             warnings.append(f"Node count {count} exceeds max {max_nodes}")
             recommendations.append("Run omega consolidate to deduplicate and prune")
 
