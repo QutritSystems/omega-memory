@@ -1,5 +1,6 @@
 """Data types, enums, and utility functions for SQLiteStore."""
 
+import os
 import re
 import struct
 import unicodedata
@@ -9,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from omega.schema import SCHEMA_VERSION  # noqa: F401 -- re-exported
 
-EMBEDDING_DIM = 384
+EMBEDDING_DIM = int(os.environ.get("OMEGA_EMBEDDING_DIM", "384"))
 
 # Pre-compiled regex for query deduplication (strip trailing git hashes)
 _TRAILING_HASH_RE = re.compile(r"\s*-\s*[0-9a-f]{6,40}\s*$")

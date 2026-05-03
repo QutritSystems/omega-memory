@@ -42,9 +42,48 @@ try:
 except ImportError:
     np = None  # type: ignore[assignment]  # ONNX path won't be entered
 
-# Embedding model state
+# ── API Backend (OpenAI / Voyage) ──────────────────────────────────────────
+# Set OMEGA_EMBEDDING_BACKEND=openai or =voyage to replace ONNX entirely.
+# When using a different dimension (e.g. voyage-3 = 1024), also set
+# OMEGA_EMBEDDING_DIM=1024 and run scripts/migrate_embeddings.py first.
+_API_BACKEND = os.environ.get("OMEGA_EMBEDDING_BACKEND", "").lower()  # "openai" | "voyage" | ""
+_OPENAI_MODEL = os.environ.get("OMEGA_OPENAI_MODEL", "text-embedding-3-small")
+_VOYAGE_MODEL = os.environ.get("OMEGA_VOYAGE_MODEL", "voyage-3-lite")
+_API_DIM = int(os.environ.get("OMEGA_EMBEDDING_DIM", "384"))
+_API_BATCH_SIZE = 128  # max texts per API call
+
+
+def _api_embed_batch(texts: List[str]) -> Optional[List[List[float]]]:
+    """Call OpenAI or Voyage embedding API. Returns list of vectors, or None on failure."""
+    if _API_BACKEND == "openai":
+        try:
+            from openai import OpenAI
+            client = OpenAI()  # reads OPENAI_API_KEY from env
+            resp = client.embeddings.create(model=_OPENAI_MODEL, input=texts, dimensions=_API_DIM)
+            return [d.embedding for d in sorted(resp.data, key=lambda x: x.index)]
+        except Exception as e:
+            logger.warning("OpenAI embedding API failed: %s", e)
+            return None
+    elif _API_BACKEND == "voyage":
+        try:
+            import voyageai
+            client = voyageai.Client()  # reads VOYAGE_API_KEY from env
+            resp = client.embed(texts, model=_VOYAGE_MODEL)
+            return resp.embeddings
+        except Exception as e:
+            logger.warning("Voyage embedding API failed: %s", e)
+            return None
+    return None
+
+
+def _api_embed_single(text: str) -> Optional[List[float]]:
+    result = _api_embed_batch([text])
+    return result[0] if result else None
+
+
+# ── ONNX model state ────────────────────────────────────────────────────────
 _EMBEDDING_MODEL = None
-_EMBEDDING_BACKEND = None  # "onnx" only (sentence-transformers removed to prevent 7.5GB PyTorch blowup)
+_EMBEDDING_BACKEND = None  # "openai" | "voyage" | "onnx" | None
 _LOAD_ATTEMPTED = False  # Circuit breaker: don't retry after first failure
 _EMBEDDING_MODEL_NAME = "bge-small-en-v1.5"
 _EMBEDDING_MODEL_VERSION = "v1.5"
@@ -466,6 +505,19 @@ def generate_embedding(text: str, dimension: int = 384) -> List[float]:
     except Exception as e:
         logger.debug("Embedding daemon unavailable: %s", e)
 
+    # API backend (OpenAI / Voyage) — preferred over ONNX when configured
+    if _API_BACKEND:
+        result = _api_embed_single(text)
+        if result is not None:
+            _EMBEDDING_CACHE[cache_key] = result
+            while len(_EMBEDDING_CACHE) > _EMBEDDING_CACHE_MAX:
+                _EMBEDDING_CACHE.popitem(last=False)
+            _LAST_EMBED_TIME = _time_module.monotonic()
+            _embedding_degraded = False
+            _EMBEDDING_BACKEND = _API_BACKEND
+            return result
+        # API failed — fall through to ONNX or hash
+
     # In-process ONNX fallback
     if _has_embedding_backend():
         try:
@@ -516,6 +568,23 @@ def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
                 return result
     except Exception as e:
         logger.debug("Batch embedding daemon unavailable: %s", e)
+
+    # API backend (OpenAI / Voyage) — batched call
+    if _API_BACKEND:
+        all_results: List[List[float]] = []
+        failed = False
+        for i in range(0, len(texts), _API_BATCH_SIZE):
+            batch = texts[i : i + _API_BATCH_SIZE]
+            result = _api_embed_batch(batch)
+            if result is None:
+                failed = True
+                break
+            all_results.extend(result)
+        if not failed and len(all_results) == len(texts):
+            global _EMBEDDING_BACKEND
+            _EMBEDDING_BACKEND = _API_BACKEND
+            return all_results
+        # API failed — fall through to ONNX or hash
 
     if _has_embedding_backend():
         try:
