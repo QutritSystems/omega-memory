@@ -1099,6 +1099,32 @@ class TestMaintenanceComprehensive:
         assert removed == 0
         assert store.node_count() == 2
 
+    def test_cleanup_expired_keeps_rows_expiring_later_the_same_day(self, store, monkeypatch):
+        # SQLite's datetime() yields '2026-09-29 09:00:00'; comparing that as
+        # text against an ISO 'T' timestamp treats every row expiring later
+        # the same UTC day as already expired (' ' sorts before 'T').
+        from datetime import datetime as real_datetime, timezone
+        from omega.sqlite_store import _maintenance
+
+        class FixedNow(real_datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return real_datetime(2026, 9, 29, 8, 0, 0, tzinfo=timezone.utc)
+
+        monkeypatch.setattr(_maintenance, "datetime", FixedNow)
+        later = store.store(content="Expires at 09:00, an hour from now", ttl_seconds=7200)
+        gone = store.store(content="Expired at 07:30, half an hour ago", ttl_seconds=1800)
+        store._conn.execute(
+            "UPDATE memories SET created_at = ? WHERE node_id IN (?, ?)",
+            ("2026-09-29T07:00:00+00:00", later, gone),
+        )
+
+        removed = store.cleanup_expired()
+
+        assert removed == 1
+        assert store.get_node(later) is not None
+        assert store.get_node(gone) is None
+
     def test_evict_lru_removes_least_accessed(self, store):
         id1 = store.store(content="Ansible playbook for server provisioning automation")
         id2 = store.store(content="Grafana dashboard template for Kubernetes monitoring")
