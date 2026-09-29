@@ -1,0 +1,21 @@
+tests/test_sqlite_store.py
+  s_a9d13163cae1a4::t_1a8531cafd2f0b 1102-1127
+src/omega/sqlite_store/_maintenance.py
+  s_a9d13163cae1a4::t_87797d09d56c06 88-92,97-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "26902e52d577b0d4b7d9e8c5d459b28ba25d33d6",
+  "prompts": {},
+  "sessions": {
+    "s_a9d13163cae1a4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "13e6589f-0bed-46b8-a8b9-4fa18e48ad4a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Weiss-C <140757798+Weiss-C@users.noreply.github.com>"
+    }
+  }
+}
