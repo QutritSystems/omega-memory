@@ -88,14 +88,15 @@ class MaintenanceMixin:
             # Both sides in SQLite's '%Y-%m-%d %H:%M:%f' text form. Comparing
             # datetime() output against an isoformat() string ('...T...')
             # expired every row due later the same UTC day, since ' ' < 'T'.
-            # Milliseconds, not seconds, so a TTL of 0 is expired at once.
+            # Milliseconds, and <= rather than <: a row is expired from the moment
+            # it is due, so a TTL of 0 is expired even within the same millisecond.
             now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            # Find expired: created_at + ttl_seconds < now
+            # Find expired: created_at + ttl_seconds <= now
             rows = self._conn.execute(
                 """SELECT id, node_id, content, event_type FROM memories
                    WHERE ttl_seconds IS NOT NULL
                    AND strftime('%Y-%m-%d %H:%M:%f', created_at,
-                                '+' || ttl_seconds || ' seconds') < ?""",
+                                '+' || ttl_seconds || ' seconds') <= ?""",
                 (now,),
             ).fetchall()
 
