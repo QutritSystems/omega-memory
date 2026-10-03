@@ -42,6 +42,7 @@ full = [
     "omega-memory[server]",
     "omega-memory[encrypt]",
 ]
+embedding = ["openai>=1.0.0", "voyageai>=0.2.1"]
 benchmark = ["openai>=1.0.0", "sentence-transformers>=2.2.0"]
 docs = ["mkdocs-material>=9.0.0"]
 dev = ["pytest", "pytest-asyncio", "pytest-cov", "ruff", "commitizen>=4.1", "mypy>=1.8.0"]
