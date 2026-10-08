@@ -382,8 +382,21 @@ def get_active_backend() -> Optional[str]:
     return _EMBEDDING_BACKEND
 
 
-def _hash_embedding(text: str, dimension: int = 384) -> List[float]:
-    """Fallback: deterministic pseudo-embedding from text hash."""
+def _store_embedding_dim() -> int:
+    """The store's vector width (OMEGA_EMBEDDING_DIM, default 384).
+
+    Imported lazily: omega.sqlite_store pulls in a lot, and only the hash
+    fallback needs to know the width.
+    """
+    from omega.sqlite_store._types import EMBEDDING_DIM
+
+    return EMBEDDING_DIM
+
+
+def _hash_embedding(text: str, dimension: Optional[int] = None) -> List[float]:
+    """Fallback: deterministic pseudo-embedding from text hash, at the store's width."""
+    if dimension is None:
+        dimension = _store_embedding_dim()
     hash_digest = hashlib.md5(text.encode()).digest()
     seed = int.from_bytes(hash_digest[:4], byteorder="big")
 
@@ -431,8 +444,11 @@ def is_embedding_degraded() -> bool:
     return _embedding_degraded
 
 
-def generate_embedding(text: str, dimension: int = 384) -> List[float]:
-    """Generate semantic embedding from text. Returns 384-dim normalized vector.
+def generate_embedding(text: str, dimension: Optional[int] = None) -> List[float]:
+    """Generate semantic embedding from text. Returns a normalized vector.
+
+    The local models are 384-dim; ``dimension`` (default: the store's
+    OMEGA_EMBEDDING_DIM) only sets the width of the hash fallback.
 
     Priority: daemon > in-process ONNX > hash fallback.
     """
@@ -595,7 +611,7 @@ def _get_embedding_executor() -> ThreadPoolExecutor:
     return _EMBEDDING_EXECUTOR
 
 
-async def generate_embedding_async(text: str, dimension: int = 384) -> List[float]:
+async def generate_embedding_async(text: str, dimension: Optional[int] = None) -> List[float]:
     """Generate embedding asynchronously (non-blocking)."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_get_embedding_executor(), generate_embedding, text, dimension)

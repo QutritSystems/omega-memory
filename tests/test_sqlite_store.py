@@ -1548,3 +1548,95 @@ class TestEmbeddingDimFromEnv:
              "print(_types.EMBEDDING_DIM, EMBEDDING_DIM)"],
             env=env, capture_output=True, text=True, check=True)
         assert out.stdout.split() == ["1024", "1024"]
+
+
+def _run_at_width(tmp_path, code, dim=8):
+    """Run `code` in a fresh interpreter whose store is `dim`-wide.
+
+    The width is bound at import, so it can only be exercised in a new process.
+    The snippet gets `store` (an SQLiteStore under tmp_path) and `vec(x)`.
+    """
+    import subprocess
+    import sys
+    import textwrap
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parent.parent / "src"
+    home = tmp_path / ".omega"
+    home.mkdir(exist_ok=True)
+    prelude = textwrap.dedent(f"""
+        from pathlib import Path
+        from omega.sqlite_store import SQLiteStore
+        store = SQLiteStore(db_path=Path({str(home / 'w.db')!r}))
+        def vec(x):
+            return [x] + [0.0] * ({dim} - 1)
+    """)
+    env = dict(os.environ, OMEGA_EMBEDDING_DIM=str(dim), OMEGA_HOME=str(home),
+               OMEGA_ENCRYPT="0", PYTHONPATH=str(src))
+    out = subprocess.run([sys.executable, "-c", prelude + textwrap.dedent(code)],
+                         env=env, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return out.stdout
+
+
+class TestNonDefaultWidthPaths:
+    """Paths that used to assume 384 even when the store is another width."""
+
+    def test_hash_fallback_uses_the_store_width(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from unittest.mock import patch
+            import omega.embedding as e
+            # no daemon module in this fork, so no local backend means hash fallback
+            with patch.object(e, "_has_embedding_backend", return_value=False):
+                print(len(e._hash_embedding("x")), len(e.generate_embedding("not cached text")))
+        """)
+        assert out.split() == ["8", "8"]
+
+    def test_update_keeps_the_old_vector_when_the_new_one_is_the_wrong_width(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from unittest.mock import patch
+            nid = store.store("first", embedding=vec(1.0), skip_inference=True)
+            # e.g. the local 384-dim model answering under OMEGA_EMBEDDING_DIM=8
+            with patch("omega.embedding.generate_embedding", return_value=[0.5] * 384):
+                print(store.update_node(nid, content="first, edited"))
+            print(len(store.get_embedding(nid) or []))
+        """)
+        assert out.split() == ["True", "8"]
+
+    def test_update_still_replaces_a_right_width_vector(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from unittest.mock import patch
+            nid = store.store("first", embedding=vec(1.0), skip_inference=True)
+            with patch("omega.embedding.generate_embedding", return_value=[0.0, 1.0] + [0.0] * 6):
+                store.update_node(nid, content="first, edited")
+            print([round(x, 3) for x in store.get_embedding(nid)[:2]])
+        """)
+        assert out.strip() == "[0.0, 1.0]"
+
+    def test_connection_discovery_reads_vectors_of_the_store_width(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from unittest.mock import patch
+            import omega.bridge as bridge
+            store.store("Chose SQLite for the cache", embedding=vec(1.0),
+                        metadata={"event_type": "decision"}, skip_inference=True)
+            store.store("SQLite cache was the right call", embedding=vec(1.0),
+                        metadata={"event_type": "lesson_learned"}, skip_inference=True)
+            with patch.object(bridge, "_get_store", return_value=store):
+                bridge.discover_connections()
+            print(store.edge_count())
+        """)
+        assert int(out.strip()) >= 1
+
+    def test_doctor_expects_the_store_width(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            import types
+            from unittest.mock import patch
+            from omega import cli
+            with patch("omega.embedding.generate_embedding", return_value=[0.1] * 8):
+                try:
+                    cli.cmd_doctor(types.SimpleNamespace(json=False))
+                except SystemExit:
+                    pass
+        """)
+        assert "Embedding generation works (8-dim" in out
+        assert "Embedding dimension wrong" not in out
