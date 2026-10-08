@@ -1505,3 +1505,46 @@ class TestEdgeCasesComprehensive:
             assert len(results) == 1
         finally:
             s2.close()
+
+
+class TestEmbeddingDimFromEnv:
+    """OMEGA_EMBEDDING_DIM sets the vector width (e.g. 1024 for Jina)."""
+
+    @pytest.fixture
+    def dim_from_env(self):
+        from omega.sqlite_store._types import _embedding_dim_from_env
+        return _embedding_dim_from_env
+
+    def test_unset_is_384(self, monkeypatch, dim_from_env):
+        monkeypatch.delenv("OMEGA_EMBEDDING_DIM", raising=False)
+        assert dim_from_env() == 384
+
+    def test_blank_is_384(self, monkeypatch, dim_from_env):
+        monkeypatch.setenv("OMEGA_EMBEDDING_DIM", "  ")
+        assert dim_from_env() == 384
+
+    def test_reads_the_width(self, monkeypatch, dim_from_env):
+        monkeypatch.setenv("OMEGA_EMBEDDING_DIM", " 1024 ")
+        assert dim_from_env() == 1024
+
+    @pytest.mark.parametrize("raw", ["abc", "0", "-5", "1024.0"])
+    def test_rejects_non_positive_integers(self, monkeypatch, dim_from_env, raw):
+        monkeypatch.setenv("OMEGA_EMBEDDING_DIM", raw)
+        with pytest.raises(ValueError, match="OMEGA_EMBEDDING_DIM"):
+            dim_from_env()
+
+    def test_module_constant_follows_env_at_import(self):
+        """The constant is what callers bind to, so check it in a fresh process."""
+        import subprocess
+        import sys
+        import omega
+
+        env = dict(os.environ,
+                   OMEGA_EMBEDDING_DIM="1024",
+                   PYTHONPATH=os.path.dirname(os.path.dirname(omega.__file__)))
+        out = subprocess.run(
+            [sys.executable, "-c",
+             "from omega.sqlite_store import _types, EMBEDDING_DIM;"
+             "print(_types.EMBEDDING_DIM, EMBEDDING_DIM)"],
+            env=env, capture_output=True, text=True, check=True)
+        assert out.stdout.split() == ["1024", "1024"]
