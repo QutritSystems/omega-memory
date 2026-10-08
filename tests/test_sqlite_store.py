@@ -1627,6 +1627,38 @@ class TestNonDefaultWidthPaths:
         """)
         assert int(out.strip()) >= 1
 
+    def test_reembed_all_keeps_old_vectors_when_the_backend_is_the_wrong_width(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from unittest.mock import patch
+            nid = store.store("first", embedding=vec(1.0), skip_inference=True)
+            with patch("omega.embedding.get_active_backend", return_value="onnx"), \\
+                 patch("omega.embedding.generate_embeddings_batch",
+                       side_effect=lambda texts: [[0.5] * 384 for _ in texts]):
+                r = store.reembed_all()
+            print(r["updated"], r["failed"], len(store.get_embedding(nid) or []))
+        """)
+        assert out.split() == ["0", "1", "8"]
+
+    def test_reembed_all_still_replaces_right_width_vectors(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from unittest.mock import patch
+            nid = store.store("first", embedding=vec(1.0), skip_inference=True)
+            with patch("omega.embedding.get_active_backend", return_value="onnx"), \\
+                 patch("omega.embedding.generate_embeddings_batch",
+                       side_effect=lambda texts: [[0.0, 1.0] + [0.0] * 6 for _ in texts]):
+                r = store.reembed_all()
+            print(r["updated"], r["failed"], [round(x, 3) for x in store.get_embedding(nid)[:2]])
+        """)
+        assert out.strip() == "1 0 [0.0, 1.0]"
+
+    def test_embedding_info_reports_the_store_width(self, tmp_path):
+        out = _run_at_width(tmp_path, """
+            from omega.embedding import get_embedding_info
+            info = get_embedding_info()
+            print(info["dimension"], info["model_dimension"])
+        """)
+        assert out.split() == ["8", "384"]
+
     def test_doctor_expects_the_store_width(self, tmp_path):
         out = _run_at_width(tmp_path, """
             import types
