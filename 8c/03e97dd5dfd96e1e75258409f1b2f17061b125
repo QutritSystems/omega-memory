@@ -1,0 +1,35 @@
+src/omega/bridge.py
+  s_1c2434013780d0::t_5777e6a9f72262 4029
+src/omega/cli.py
+  s_1c2434013780d0::t_2b285cc1be2d87 2377-2378,2380-2381,2383
+src/omega/embedding.py
+  s_1c2434013780d0::t_4e3d6e085b807c 385-399,447-451,614
+src/omega/sqlite_store/_store.py
+  s_1c2434013780d0::t_46b14b5e88c394 13,412-419
+tests/test_sqlite_store.py
+  s_f2b2b6d7d0a412::t_55adb16f644be7 1551-1642
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "8c03e97dd5dfd96e1e75258409f1b2f17061b125",
+  "prompts": {},
+  "sessions": {
+    "s_1c2434013780d0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f077997a-e655-4544-bd30-76e311c1861f",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Weiss-C <140757798+Weiss-C@users.noreply.github.com>"
+    },
+    "s_f2b2b6d7d0a412": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f144000b-fbf1-40a3-a9ba-94eaf8e08dfa",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Weiss-C <140757798+Weiss-C@users.noreply.github.com>"
+    }
+  }
+}
