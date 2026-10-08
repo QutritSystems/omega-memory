@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from omega import json_compat as json
 from omega.exceptions import StorageError
-from ._types import MemoryResult, _serialize_f32, _canonicalize
+from ._types import EMBEDDING_DIM, MemoryResult, _serialize_f32, _canonicalize
 
 logger = logging.getLogger("omega.sqlite_store")
 
@@ -409,6 +409,14 @@ class StoreMixin:
             params.append(node_id)
             self._exec(f"UPDATE memories SET {', '.join(sets)} WHERE node_id = ?", params)
             # Update vec embedding if content changed
+            if new_embedding is not None and len(new_embedding) != EMBEDDING_DIM:
+                # e.g. a local 384-dim model under OMEGA_EMBEDDING_DIM=1024: the
+                # insert would fail after the delete and lose the old vector.
+                logger.warning(
+                    "update_node: re-embedded vector is %d-dim, store is %d-dim; keeping the old vector",
+                    len(new_embedding), EMBEDDING_DIM,
+                )
+                new_embedding = None
             if new_embedding is not None:
                 row = self._exec("SELECT id FROM memories WHERE node_id = ?", (node_id,)).fetchone()
                 if row:

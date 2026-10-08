@@ -2374,11 +2374,13 @@ def cmd_doctor(args):
         else:
             warn("ONNX Runtime not available, will use fallback")
 
+        from omega.sqlite_store._types import EMBEDDING_DIM
+
         emb = generate_embedding("test embedding")
-        if len(emb) == 384:
-            ok(f"Embedding generation works (384-dim, backend={info.get('backend', 'unknown')})")
+        if len(emb) == EMBEDDING_DIM:
+            ok(f"Embedding generation works ({EMBEDDING_DIM}-dim, backend={info.get('backend', 'unknown')})")
         else:
-            fail(f"Embedding dimension wrong: {len(emb)} (expected 384)")
+            fail(f"Embedding dimension wrong: {len(emb)} (expected {EMBEDDING_DIM}, OMEGA_EMBEDDING_DIM)")
     except Exception as e:
         fail(f"Embedding generation failed: {e}")
 

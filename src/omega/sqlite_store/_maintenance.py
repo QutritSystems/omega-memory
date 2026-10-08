@@ -11,6 +11,7 @@ from omega import json_compat as json
 from omega.exceptions import EmbeddingError, StorageError, ValidationError
 
 from ._types import (
+    EMBEDDING_DIM,
     _serialize_f32,
 )
 
@@ -562,6 +563,15 @@ class MaintenanceMixin:
                 embeddings = generate_embeddings_batch(texts)
                 with self._lock:
                     for mem_id, emb in zip(ids, embeddings):
+                        if len(emb) != EMBEDDING_DIM:
+                            # Deleting first would lose the old vector when the
+                            # wrong-width insert then fails.
+                            logger.warning(
+                                f"reembed skipped id={mem_id}: backend gave {len(emb)}-dim, "
+                                f"store is {EMBEDDING_DIM}-dim; keeping the old vector"
+                            )
+                            failed += 1
+                            continue
                         try:
                             self._conn.execute("DELETE FROM memories_vec WHERE rowid = ?", (mem_id,))
                             self._conn.execute(

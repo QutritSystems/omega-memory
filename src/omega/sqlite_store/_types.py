@@ -1,5 +1,6 @@
 """Data types, enums, and utility functions for SQLiteStore."""
 
+import os
 import re
 import struct
 import unicodedata
@@ -9,7 +10,30 @@ from typing import Any, Dict, List, Optional
 
 from omega.schema import SCHEMA_VERSION  # noqa: F401 -- re-exported
 
-EMBEDDING_DIM = 384
+_DEFAULT_EMBEDDING_DIM = 384
+
+
+def _embedding_dim_from_env() -> int:
+    """Vector width from OMEGA_EMBEDDING_DIM (default 384).
+
+    Read once, at import: the width is bound into default arguments below
+    (``_deserialize_f32(..., dim=EMBEDDING_DIM)``) and into the vec0 table
+    created on first open, so it has to be set before omega is imported and
+    has to match the width the existing table was created with.
+    """
+    raw = os.environ.get("OMEGA_EMBEDDING_DIM", "").strip()
+    if not raw:
+        return _DEFAULT_EMBEDDING_DIM
+    try:
+        dim = int(raw)
+    except ValueError:
+        raise ValueError(f"OMEGA_EMBEDDING_DIM must be a positive integer, got {raw!r}") from None
+    if dim <= 0:
+        raise ValueError(f"OMEGA_EMBEDDING_DIM must be a positive integer, got {raw!r}")
+    return dim
+
+
+EMBEDDING_DIM = _embedding_dim_from_env()
 
 # Pre-compiled regex for query deduplication (strip trailing git hashes)
 _TRAILING_HASH_RE = re.compile(r"\s*-\s*[0-9a-f]{6,40}\s*$")
