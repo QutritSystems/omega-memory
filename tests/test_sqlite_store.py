@@ -1655,9 +1655,9 @@ class TestNonDefaultWidthPaths:
         out = _run_at_width(tmp_path, """
             from omega.embedding import get_embedding_info
             info = get_embedding_info()
-            print(info["dimension"], info["model_dimension"])
+            print(info["dimension"])
         """)
-        assert out.split() == ["8", "384"]
+        assert out.strip() == "8"
 
     def test_doctor_expects_the_store_width(self, tmp_path):
         out = _run_at_width(tmp_path, """

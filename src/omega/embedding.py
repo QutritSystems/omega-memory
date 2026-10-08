@@ -591,7 +591,6 @@ def get_embedding_info() -> Dict[str, Any]:
         "onnx_available": has_onnx,
         "onnx_model_dir": _get_onnx_model_dir() if has_onnx else None,
         "dimension": _store_embedding_dim(),  # the store's width (OMEGA_EMBEDDING_DIM)
-        "model_dimension": 384,  # what the local models produce
         "cache_size": len(_EMBEDDING_CACHE),
         "lazy_loading": True,
     }
