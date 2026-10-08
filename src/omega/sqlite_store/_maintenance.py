@@ -798,7 +798,7 @@ class MaintenanceMixin:
                 "auto-unloads after 10 min idle."
             )
 
-        if count > max_nodes:
+        if (count or 0) > max_nodes:
             warnings.append(f"Node count {count} exceeds max {max_nodes}")
             recommendations.append("Run omega consolidate to deduplicate and prune")
 
@@ -806,7 +806,7 @@ class MaintenanceMixin:
         zero_access = self._conn.execute(
             "SELECT COUNT(*) FROM memories WHERE access_count = 0"
         ).fetchone()[0]
-        never_accessed_pct = (zero_access / count * 100) if count > 0 else 0
+        never_accessed_pct = (zero_access / count * 100) if (count or 0) > 0 else 0
         if never_accessed_pct > 80:
             warnings.append(f"{never_accessed_pct:.0f}% of memories never accessed")
             recommendations.append("Run omega_maintain(action='consolidate') to prune stale memories")
