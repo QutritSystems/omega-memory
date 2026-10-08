@@ -1,0 +1,31 @@
+src/omega/embedding.py
+  s_f2b2b6d7d0a412::t_e38565cc53a3b0 593-594
+src/omega/sqlite_store/_maintenance.py
+  s_f2b2b6d7d0a412::t_f8e0f6beb8982f 14,566-574
+tests/test_sqlite_store.py
+  s_09c58be2e229c8::t_7131fa07b3c1b9 1630-1661
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "ddabfa5b9592e7e3bcad990e4282d2ddf1da73d7",
+  "prompts": {},
+  "sessions": {
+    "s_09c58be2e229c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "da57d056-ad01-469e-92e0-4b36f3f5c43b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Weiss-C <140757798+Weiss-C@users.noreply.github.com>"
+    },
+    "s_f2b2b6d7d0a412": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f144000b-fbf1-40a3-a9ba-94eaf8e08dfa",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Weiss-C <140757798+Weiss-C@users.noreply.github.com>"
+    }
+  }
+}
