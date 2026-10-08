@@ -1,0 +1,19 @@
+tests/test_sqlite_store.py
+  s_f2b2b6d7d0a412::t_1465dad7d63fb9 1658,1660
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "8d1713f8a227bae83480d74b66514a449686a8fa",
+  "prompts": {},
+  "sessions": {
+    "s_f2b2b6d7d0a412": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f144000b-fbf1-40a3-a9ba-94eaf8e08dfa",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Weiss-C <140757798+Weiss-C@users.noreply.github.com>"
+    }
+  }
+}
